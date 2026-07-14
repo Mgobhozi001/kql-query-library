@@ -1,0 +1,19 @@
+// Title: Suspicious PowerShell Execution
+// Description: Flags PowerShell processes launched with encoded commands,
+//              download cradles, or execution policy bypass flags — common
+//              indicators of fileless malware or living-off-the-land attacks.
+// MITRE ATT&CK: T1059.001 - Command and Scripting Interpreter: PowerShell
+// Data Source: DeviceProcessEvents (Microsoft Defender for Endpoint)
+// Author: Sphamandla Mgobhozi
+
+DeviceProcessEvents
+| where FileName in~ ("powershell.exe", "pwsh.exe")
+| where ProcessCommandLine has_any (
+    "-enc", "-EncodedCommand", "-e ", 
+    "IEX", "Invoke-Expression",
+    "DownloadString", "DownloadFile",
+    "-ExecutionPolicy Bypass", "-nop", "-w hidden", "-windowstyle hidden"
+)
+| project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, 
+          InitiatingProcessFileName, InitiatingProcessCommandLine
+| sort by TimeGenerated desc

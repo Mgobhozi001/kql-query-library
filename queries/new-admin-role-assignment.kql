@@ -1,0 +1,24 @@
+// Title: New Admin Role Assignment
+// Description: Detects when a user is newly assigned a privileged directory
+//              role (e.g. Global Administrator), which can indicate
+//              legitimate privilege escalation or account compromise.
+// MITRE ATT&CK: T1098 - Account Manipulation
+// Data Source: AuditLogs (Microsoft Entra ID)
+// Author: Sphamandla Mgobhozi
+
+let privilegedRoles = dynamic([
+    "Global Administrator", "Privileged Role Administrator",
+    "Security Administrator", "Exchange Administrator",
+    "SharePoint Administrator", "User Administrator"
+]);
+AuditLogs
+| where OperationName == "Add member to role"
+| extend TargetUser = tostring(TargetResources[0].userPrincipalName)
+| extend ModifiedProps = TargetResources[0].modifiedProperties
+| mv-expand ModifiedProps
+| where tostring(ModifiedProps.displayName) == "Role.DisplayName"
+| extend RoleName = trim(@'"', tostring(ModifiedProps.newValue))
+| where RoleName in (privilegedRoles)
+| extend InitiatedBy = tostring(InitiatedBy.user.userPrincipalName)
+| project TimeGenerated, TargetUser, RoleName, InitiatedBy, Result
+| sort by TimeGenerated desc
